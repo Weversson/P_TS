@@ -1,0 +1,36 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest # Ou uma versão mais recente se preferir
+    container_name: jaeger
+    environment:
+      # Expor a porta OTLP gRPC (4317) e a porta OTLP HTTP (4318)
+      # e a porta da UI (16686)
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC (para OpenTelemetry)
+      - "4318:4318"   # OTLP HTTP (para OpenTelemetry)
+      # - "6831:6831/udp" # Você pode remover esta linha se não usar mais Thrift
+      # - "14268:14268" # Porta HTTP do coletor (para Thrift e outros)
+    networks:
+      - app-network
+
+  your-application:
+    build:
+      context: ./python_app
+      dockerfile: Dockerfile
+    container_name: your-application
+    ports:
+      - "8000:8080" # Ou a porta que você está usando no seu host
+    environment:
+      # Definir o endpoint OTLP para o Jaeger Collector
+      - JAEGER_OTLP_ENDPOINT=http://jaeger:4317
+      - JAEGER_AGENT_HOST=jaeger # Ainda bom ter, mas o OTLP exporter usa o endpoint
+    depends_on:
+      - jaeger
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
